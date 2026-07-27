@@ -1,0 +1,33 @@
+.context-menu {
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border) ;
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    padding: 5px 0;
+    font-family: inherit; 
+    min-width: 160px;
+}
+
+.context-menu > div {
+    color: var(--text-main);
+    padding: 8px 15px;
+    font-size: 13px;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.context-menu > div:hover {
+    background-color: var(--accent);
+    color: var(--text-light);
+}
+
+.context-menu .menu-item-icon {
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+.context-menu hr {
+    background-color: var(--border);
+    height: 1px;
+    border: none;
+    margin: 4px 0;
+}

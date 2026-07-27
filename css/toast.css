@@ -1,0 +1,18 @@
+.toastify.toast {
+    background: linear-gradient(to right, var(--accent), var(--accent-hover)) !important;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    color: var(--text-light);
+    font-size: 14px;
+    padding: 12px 20px;
+    border: 1px solid var(--border);
+}
+
+.toastify.toast .toast-close {
+    color: var(--text-light);
+    opacity: 0.8;
+}
+
+.toastify.toast .toast-close:hover {
+    opacity: 1;
+}

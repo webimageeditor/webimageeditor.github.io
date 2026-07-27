@@ -1,28 +1,64 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebImage Suite Pro</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="libs/jszip.min.js"></script>
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+    <script src="libs/vanilla-context-menu.js"></script>
+    <script src="libs/gifjs/gif.js"></script>
+
+    <script src="libs/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+    <script src="libs/@upscalerjs/default-model@latest/dist/umd/index.min.js"></script>
+    <script src="libs/upscaler@latest/dist/browser/umd/upscaler.min.js"></script>
+
+    <script src="libs/toastify-js.js"></script>
 </head>
+
 <body>
+    <div id="resize-modal" class="modal">
+        <div class="modal-content">
+            <h2>Resize Image</h2>
+
+            <div class="field">
+                <label>Width (px)</label>
+                <input type="number" id="resize-width" min="1">
+            </div>
+
+            <div class="field">
+                <label>Height (px)</label>
+                <input type="number" id="resize-height" min="1">
+            </div>
+
+            <label class="checkbox">
+                <input type="checkbox" id="keep-ratio" checked>
+                Keep aspect ratio
+            </label>
+
+            <div class="buttons">
+                <button id="resize-cancel" class="btn">Cancel</button>
+                <button id="resize-apply" class="btn btn-primary">Apply</button>
+            </div>
+        </div>
+    </div>
     <div class="app-container">
         <header class="top-bar">
             <div class="logo">WebImage Suite <span>PRO</span></div>
             <div class="menu-actions">
                 <button id="btn-open" class="btn">Open Image</button>
                 <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
-                <button id="btn-export" class="btn btn-primary">Export Current</button>
-                <button id="btn-batch" class="btn btn-secondary">Batch Processing (ZIP)</button>
+                <button id="btn-export" class="btn btn-primary">Export</button>
             </div>
         </header>
 
         <div class="workspace">
             <aside class="toolbar">
-                <button class="tool-btn active" title="Move / Select">✋</button>
-                <button class="tool-btn" title="Crop (Not implemented)">✂️</button>
+                <button class="tool-btn active" title="Move / Select" id="btn-tool-move">✋</button>
+                <button class="tool-btn" title="Crop" id="btn-tool-crop">✂️</button>
                 <button class="tool-btn" title="Rotate Left" id="btn-rotate-l">↺</button>
                 <button class="tool-btn" title="Rotate Right" id="btn-rotate-r">↻</button>
                 <button class="tool-btn" title="Flip Horizontal" id="btn-flip-h">↔</button>
@@ -30,23 +66,45 @@
             </aside>
 
             <main class="canvas-container" id="drop-zone">
-                <div class="canvas-wrapper">
-                    <canvas id="main-canvas"></canvas>
+                <div class="scroll-area">
+                    <div class="canvas-wrapper">
+                        <div id="image-box" class="image-box">
+                            <canvas id="main-canvas"></canvas>
+
+                            <div id="crop-box" class="crop-box">
+                                <button id="btn-apply-crop" class="btn btn-primary btn-crop-apply">✔</button>
+                            </div>
+
+                            <div class="handle nw"></div>
+                            <div class="handle n"></div>
+                            <div class="handle ne"></div>
+
+                            <div class="handle w"></div>
+                            <div class="handle e"></div>
+
+                            <div class="handle sw"></div>
+                            <div class="handle s"></div>
+                            <div class="handle se"></div>
+                        </div>
+                    </div>
                 </div>
                 <div id="welcome-msg" class="welcome-msg">
                     <h2>Drag your images here</h2>
                     <p>Or paste from the clipboard (Ctrl+V)</p>
                 </div>
+                <div id="zoom-toast" class="zoom-toast">100%</div>
             </main>
+
+            <div class="sidebar-resizer" id="sidebar-resizer"></div>
 
             <aside class="properties-panel">
                 <h3>Settings</h3>
-                
+
                 <div class="control-group">
                     <label>Brightness <span id="val-brightness">100%</span></label>
                     <input type="range" id="brightness" min="0" max="200" value="100">
                 </div>
-                
+
                 <div class="control-group">
                     <label>Contrast <span id="val-contrast">100%</span></label>
                     <input type="range" id="contrast" min="0" max="200" value="100">
@@ -56,7 +114,7 @@
                     <label>Saturation <span id="val-saturation">100%</span></label>
                     <input type="range" id="saturation" min="0" max="200" value="100">
                 </div>
-                
+
                 <div class="control-group">
                     <label>Blur <span id="val-blur">0px</span></label>
                     <input type="range" id="blur" min="0" max="20" value="0" step="0.5">
@@ -70,6 +128,11 @@
                 <button id="btn-reset" class="btn btn-block" style="margin-top: 15px;">Reset settings</button>
 
                 <hr style="border-color: #333; margin: 20px 0;">
+                <h3>AI Tools</h3>
+                <button id="btn-upscale" class="btn btn-block btn-secondary" style="margin-bottom: 15px;">🚀 Upscale
+                    Image (2x)</button>
+
+                <hr style="border-color: #333; margin: 20px 0;">
 
                 <h3>Export</h3>
                 <div class="control-group">
@@ -78,25 +141,28 @@
                         <option value="image/jpeg">JPEG (.jpg)</option>
                         <option value="image/png" selected>PNG (.png)</option>
                         <option value="image/webp">WEBP (.webp)</option>
-		    </select>
+                        <option value="image/gif">GIF (.gif)</option>
+                    </select>
                 </div>
-		<div class="control-group">
-    		    <label>Resize width (px)</label>
-    		    <input type="number" id="resize-width" placeholder="Original size">
-		</div>
-                <div class="control-group">
-                    <label>Quality (JPG/WEBP) <span id="val-quality">90%</span></label>
-                    <input type="range" id="quality" min="10" max="100" value="90">
+                <div class="control-group" id="quality-container" style="display: none;">
+                    <label>Quality (JPG/WEBP) <span id="val-quality">100%</span></label>
+                    <input type="range" id="quality" min="10" max="100" value="100">
                 </div>
             </aside>
         </div>
-        
+
         <footer class="status-bar">
-            <span id="status-info">Done. Waiting image...</span>
-            <span id="resolution-info">0 x 0 px</span>
+            <span id="status-info">Done. Please select an image to begin.</span>
+
+            <div class="zoom-scrubber">
+                🔍 <span id="zoom-val">100%</span>
+            </div>
+
+            <span id="resolution-info" class="clickable">0 x 0 px</span>
         </footer>
     </div>
-    
-    <script src="js/app.js"></script>
+
+    <script src="js/app.js" type="module"></script>
 </body>
+
 </html>
